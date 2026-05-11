@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ケーブルラック 材料計算ツール</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: #f0f4f8;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a3a5c;
+      color: white;
+      padding: 20px 16px 16px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.05em; }
+    header p  { font-size: 0.8rem; margin-top: 4px; opacity: 0.8; }
+
+    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 {
+      font-size: 1rem; font-weight: 700; color: #1a3a5c;
+      margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 2px solid #e8f0f8;
+    }
+    .card .card-hint {
+      font-size: 0.75rem; color: #888; margin-bottom: 12px; margin-top: -8px;
+    }
+
+    /* ルートカード */
+    .route-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .route-card {
+      border: 2px solid #dde3ea;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .route-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: #eef4fa;
+      border-bottom: 1px solid #d0e0ef;
+    }
+    .route-card-header .route-title {
+      font-size: 0.9rem; font-weight: 700; color: #1a3a5c; letter-spacing: 0.05em;
+    }
+    .btn-remove {
+      background: none; border: none; color: #bbb;
+      font-size: 1.2rem; cursor: pointer; line-height: 1;
+      padding: 2px 4px; border-radius: 4px; transition: color 0.2s;
+    }
+    .btn-remove:hover { color: #dc2626; }
+
+    .route-card-body {
+      padding: 14px; background: white;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* 種別トグル（QR/SR） */
+    .type-toggle { display: flex; gap: 8px; }
+    .type-toggle input[type="radio"] { display: none; }
+    .type-toggle label {
+      flex: 1; text-align: center; padding: 10px 8px;
+      border: 2px solid #dde3ea; border-radius: 8px;
+      font-size: 0.9rem; font-weight: 700; cursor: pointer;
+      color: #666; transition: all 0.2s; line-height: 1.3;
+    }
+    .type-toggle label small {
+      display: block; font-size: 0.7rem; font-weight: 400;
+      color: #999; margin-top: 2px;
+    }
+    .type-toggle input[type="radio"]:checked + label {
+      background: #1a3a5c; border-color: #1a3a5c; color: white;
+    }
+    .type-toggle input[type="radio"]:checked + label small {
+      color: rgba(255,255,255,0.75);
+    }
+
+    /* 共通入力行 */
+    .input-row {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .input-row-label {
+      font-size: 0.85rem; font-weight: 700; color: #333;
+      white-space: nowrap; width: 54px; flex-shrink: 0;
+    }
+    .input-row select,
+    .input-row input[type="number"] {
+      flex: 1; padding: 10px 12px;
+      border: 2px solid #dde3ea; border-radius: 8px;
+      font-size: 0.95rem; color: #1a1a1a; background: white;
+      transition: border-color 0.2s;
+    }
+    .input-row select {
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 32px; cursor: pointer;
+    }
+    .input-row input[type="number"] {
+      -moz-appearance: textfield; text-align: right;
+    }
+    .input-row input[type="number"]::-webkit-inner-spin-button,
+    .input-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .input-row select:focus,
+    .input-row input[type="number"]:focus { outline: none; border-color: #1a3a5c; }
+    .input-row .unit { font-size: 0.82rem; color: #888; white-space: nowrap; }
+
+    /* ダクターレール入力カード */
+    .rail-input-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .rail-input-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px;
+      background: #f7fafd;
+      border: 1px solid #dde3ea;
+      border-radius: 8px;
+    }
+    .rail-input-row input[type="number"] {
+      padding: 8px 10px;
+      border: 2px solid #dde3ea; border-radius: 7px;
+      font-size: 0.95rem; color: #1a1a1a; background: white;
+      -moz-appearance: textfield; text-align: right;
+      transition: border-color 0.2s;
+    }
+    .rail-input-row input[type="number"]::-webkit-inner-spin-button,
+    .rail-input-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    .rail-input-row input[type="number"]:focus { outline: none; border-color: #1a3a5c; }
+    .rail-input-row .rail-size-input { width: 80px; flex-shrink: 0; }
+    .rail-input-row .rail-count-input { width: 60px; flex-shrink: 0; }
+    .rail-input-row .rail-sep {
+      font-size: 0.8rem; color: #aaa; white-space: nowrap; flex-shrink: 0;
+    }
+    .rail-input-row .unit { font-size: 0.8rem; color: #888; white-space: nowrap; flex-shrink: 0; }
+    .rail-input-row .btn-remove { margin-left: auto; flex-shrink: 0; }
+
+    .btn-add-sub {
+      width: 100%; padding: 10px;
+      background: transparent; color: #1a3a5c;
+      border: 1.5px dashed #a0b8d0; border-radius: 8px;
+      font-size: 0.88rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; margin-top: 2px;
+    }
+    .btn-add-sub:hover { background: #eef4fa; border-color: #1a3a5c; }
+
+    .btn-add-route {
+      width: 100%; padding: 12px;
+      background: transparent; color: #1a3a5c;
+      border: 2px dashed #a0b8d0; border-radius: 10px;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; margin-top: 4px;
+    }
+    .btn-add-route:hover { background: #eef4fa; border-color: #1a3a5c; }
+
+    /* 計算ボタン */
+    .btn-calc {
+      width: 100%; padding: 16px; background: #e85c2a;
+      color: white; border: none; border-radius: 10px;
+      font-size: 1.1rem; font-weight: 700; cursor: pointer;
+      letter-spacing: 0.05em; transition: background 0.2s;
+    }
+    .btn-calc:hover { background: #c94d20; }
+    .btn-calc:active { transform: scale(0.98); }
+
+    /* 結果 */
+    .result-card {
+      display: none; background: white;
+      border-radius: 12px; padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .result-card.visible { display: block; }
+    .result-card h2 {
+      font-size: 1rem; font-weight: 700; color: #1a3a5c;
+      margin-bottom: 16px; padding-bottom: 8px;
+      border-bottom: 2px solid #e8f0f8;
+    }
+
+    .result-section-label {
+      font-size: 0.72rem; font-weight: 700; color: #bbb;
+      letter-spacing: 0.1em; margin: 14px 0 4px;
+    }
+    .result-section-label:first-of-type { margin-top: 0; }
+
+    .result-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 11px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .result-item:last-of-type { border-bottom: none; }
+    .result-item.hidden { display: none; }
+    .result-item .name { font-size: 0.9rem; color: #444; }
+    .result-item .count { font-size: 1.3rem; font-weight: 700; color: #1a3a5c; }
+    .result-item .unit  { font-size: 0.8rem; color: #888; margin-left: 2px; }
+
+    /* ダクターレール明細 */
+    .rail-detail-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+    .rail-detail-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 12px; background: #f7fafd;
+      border-radius: 8px; border: 1px solid #e8f0f8;
+    }
+    .rail-detail-item .rail-size { font-size: 0.88rem; color: #555; }
+    .rail-detail-item .rail-count { font-size: 1.1rem; font-weight: 700; color: #1a3a5c; }
+    .rail-detail-item .rail-unit { font-size: 0.78rem; color: #888; margin-left: 2px; }
+
+    .note {
+      margin-top: 14px; padding: 10px 14px;
+      background: #fffbeb; border-left: 3px solid #f59e0b;
+      border-radius: 4px; font-size: 0.8rem;
+      color: #78350f; line-height: 1.6;
+    }
+
+    .btn-reset {
+      width: 100%; margin-top: 12px; padding: 12px;
+      background: transparent; color: #666;
+      border: 2px solid #dde3ea; border-radius: 10px;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-reset:hover { border-color: #1a3a5c; color: #1a3a5c; }
+
+    footer { text-align: center; padding: 20px; font-size: 0.75rem; color: #aaa; }
+
+    .error { color: #dc2626; font-size: 0.8rem; margin-top: 6px; display: none; }
+    .error.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ ケーブルラック 材料計算ツール</h1>
+  <p>支持材・ふれどめ・全ネジ・ダクターレールを自動計算</p>
+</header>
+
+<div class="container">
+
+  <!-- ① ルート入力 -->
+  <div class="card">
+    <h2>① ラックルートを入力</h2>
+    <p class="card-hint">ルートごとにラック種別・幅・延長を入力してください</p>
+    <div class="route-list" id="route-list"></div>
+    <button class="btn-add-route" onclick="addRoute()">＋ ルートを追加</button>
+    <div class="error" id="err-routes">ルートを1本以上追加してください</div>
+  </div>
+
+  <!-- ② ダクターレール入力 -->
+  <div class="card">
+    <h2>② ダクターレールを入力</h2>
+    <p class="card-hint">寸法（mm）と使用箇所数をセットで入力してください</p>
+    <div class="rail-input-list" id="rail-input-list"></div>
+    <button class="btn-add-sub" onclick="addRailRow()">＋ レール寸法を追加</button>
+    <div class="error" id="err-rail"></div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calculate()">計算する</button>
+
+  <!-- 結果 -->
+  <div class="result-card" id="result">
+    <h2>必要材料リスト</h2>
+
+    <div class="result-section-label">ラック本体</div>
+    <div class="result-item">
+      <span class="name">ケーブルラック（定尺 3m）</span>
+      <span><span class="count" id="r-rack">-</span><span class="unit">本</span></span>
+    </div>
+    <div class="result-item">
+      <span class="name">ジョイント</span>
+      <span><span class="count" id="r-joint">-</span><span class="unit">個</span></span>
+    </div>
+
+    <div class="result-section-label">支持材</div>
+    <div class="result-item">
+      <span class="name">支持箇所（合計）</span>
+      <span><span class="count" id="r-support">-</span><span class="unit">か所</span></span>
+    </div>
+    <div class="result-item">
+      <span class="name">全ネジボルト</span>
+      <span><span class="count" id="r-bolt">-</span><span class="unit">本</span></span>
+    </div>
+
+    <div class="result-section-label">ふれどめ</div>
+    <div class="result-item" id="row-fure-qr">
+      <span class="name">ふれどめ（QR用）</span>
+      <span><span class="count" id="r-fure-qr">-</span><span class="unit">個</span></span>
+    </div>
+    <div class="result-item" id="row-fure-sr">
+      <span class="name">ふれどめ（SR用）</span>
+      <span><span class="count" id="r-fure-sr">-</span><span class="unit">個</span></span>
+    </div>
+
+    <div class="result-section-label">ダクターレール（定尺 2500mm）</div>
+    <div class="result-item">
+      <span class="name">定尺 2500mm 必要本数</span>
+      <span><span class="count" id="r-rail-total">-</span><span class="unit">本</span></span>
+    </div>
+    <div class="rail-detail-list" id="rail-detail"></div>
+
+    <div class="note">
+      計算値は最低限の数量です。現場の状況に応じて余裕分を確認してください。
+    </div>
+    <button class="btn-reset" onclick="reset()">もう一度計算する</button>
+  </div>
+</div>
+
+<footer>
+  ※ 支持間隔1500mm基準 / 定尺3m基準 / LRは対象外
+</footer>
+
+<script>
+  const RACK_LENGTH      = 3;    // 定尺 3m
+  const SUPPORT_INTERVAL = 1.5;  // 支持間隔 1500mm
+  const FURE_PER_SUPPORT = 2;    // ふれどめ：支持箇所×2
+  const BOLT_PER_SUPPORT = 2;    // 全ネジ：支持箇所×2
+
+  const WIDTHS = [200, 300, 400, 500, 600, 800, 1000, 1200];
+
+  let routeCount = 0;
+  let railCount  = 0;
+
+  // ─────────────────────────────
+  //  ① ラックルート
+  // ─────────────────────────────
+  function buildWidthSelect(id) {
+    const sel = document.createElement('select');
+    sel.id = id;
+    WIDTHS.forEach(w => {
+      const o = document.createElement('option');
+      o.value = w;
+      o.textContent = 'W' + w;
+      sel.appendChild(o);
+    });
+    sel.value = 300;
+    return sel;
+  }
+
+  function addRoute() {
+    routeCount++;
+    const idx = routeCount;
+
+    const card = document.createElement('div');
+    card.className = 'route-card';
+    card.id = 'route-' + idx;
+
+    // ヘッダー
+    const header = document.createElement('div');
+    header.className = 'route-card-header';
+    const title = document.createElement('span');
+    title.className = 'route-title';
+    title.textContent = 'ルート ' + idx;
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'btn-remove';
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => { card.remove(); renumberRoutes(); };
+    header.appendChild(title);
+    header.appendChild(removeBtn);
+
+    // ボディ
+    const body = document.createElement('div');
+    body.className = 'route-card-body';
+
+    // ── ラック種別 QR/SR ──
+    const typeWrap = document.createElement('div');
+    const typeLbl = document.createElement('div');
+    typeLbl.style.cssText = 'font-size:0.85rem;font-weight:700;color:#333;margin-bottom:6px;';
+    typeLbl.textContent = 'ラック種別';
+    const typeToggle = document.createElement('div');
+    typeToggle.className = 'type-toggle';
+    [
+      { val: 'QR', name: 'QR', sub: '親桁100mm' },
+      { val: 'SR', name: 'SR', sub: '親桁70mm'  },
+    ].forEach(t => {
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'type-' + idx;
+      radio.id   = 'type-' + t.val + '-' + idx;
+      radio.value = t.val;
+      if (t.val === 'QR') radio.checked = true;
+      const lbl = document.createElement('label');
+      lbl.htmlFor = radio.id;
+      lbl.innerHTML = t.name + '<small>' + t.sub + '</small>';
+      typeToggle.appendChild(radio);
+      typeToggle.appendChild(lbl);
+    });
+    typeWrap.appendChild(typeLbl);
+    typeWrap.appendChild(typeToggle);
+
+    // ── ラック幅 ──
+    const widthRow = document.createElement('div');
+    widthRow.className = 'input-row';
+    const widthLbl = document.createElement('span');
+    widthLbl.className = 'input-row-label';
+    widthLbl.textContent = 'ラック幅';
+    const widthSel = buildWidthSelect('width-' + idx);
+    widthRow.appendChild(widthLbl);
+    widthRow.appendChild(widthSel);
+
+    // ── 延長 ──
+    const lenRow = document.createElement('div');
+    lenRow.className = 'input-row';
+    const lenLbl = document.createElement('span');
+    lenLbl.className = 'input-row-label';
+    lenLbl.textContent = '延長';
+    const lenInput = document.createElement('input');
+    lenInput.type = 'number';
+    lenInput.id = 'len-' + idx;
+    lenInput.placeholder = '例：15';
+    lenInput.min = '0';
+    lenInput.step = '0.1';
+    const lenUnit = document.createElement('span');
+    lenUnit.className = 'unit';
+    lenUnit.textContent = 'm';
+    lenRow.appendChild(lenLbl);
+    lenRow.appendChild(lenInput);
+    lenRow.appendChild(lenUnit);
+
+    body.appendChild(typeWrap);
+    body.appendChild(widthRow);
+    body.appendChild(lenRow);
+    card.appendChild(header);
+    card.appendChild(body);
+
+    document.getElementById('route-list').appendChild(card);
+    document.getElementById('err-routes').classList.remove('visible');
+    renumberRoutes();
+    lenInput.focus();
+  }
+
+  function renumberRoutes() {
+    document.querySelectorAll('.route-card').forEach((card, i) => {
+      card.querySelector('.route-title').textContent = 'ルート ' + (i + 1);
+    });
+  }
+
+  // ─────────────────────────────
+  //  ② ダクターレール行
+  // ─────────────────────────────
+  function addRailRow() {
+    railCount++;
+    const idx = railCount;
+
+    const row = document.createElement('div');
+    row.className = 'rail-input-row';
+    row.id = 'rail-row-' + idx;
+
+    // 寸法入力
+    const sizeInput = document.createElement('input');
+    sizeInput.type = 'number';
+    sizeInput.className = 'rail-size-input';
+    sizeInput.id = 'rail-size-' + idx;
+    sizeInput.placeholder = '寸法';
+    sizeInput.min = '0';
+    sizeInput.step = '1';
+
+    const mmUnit = document.createElement('span');
+    mmUnit.className = 'unit';
+    mmUnit.textContent = 'mm';
+
+    const sep = document.createElement('span');
+    sep.className = 'rail-sep';
+    sep.textContent = '×';
+
+    // 箇所数入力
+    const countInput = document.createElement('input');
+    countInput.type = 'number';
+    countInput.className = 'rail-count-input';
+    countInput.id = 'rail-count-' + idx;
+    countInput.placeholder = '箇所数';
+    countInput.min = '0';
+    countInput.step = '1';
+
+    const kaUnit = document.createElement('span');
+    kaUnit.className = 'unit';
+    kaUnit.textContent = 'か所';
+
+    // 削除ボタン
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'btn-remove';
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => row.remove();
+
+    row.appendChild(sizeInput);
+    row.appendChild(mmUnit);
+    row.appendChild(sep);
+    row.appendChild(countInput);
+    row.appendChild(kaUnit);
+    row.appendChild(removeBtn);
+
+    document.getElementById('rail-input-list').appendChild(row);
+    document.getElementById('err-rail').classList.remove('visible');
+    sizeInput.focus();
+  }
+
+  // ─────────────────────────────
+  //  計算
+  // ─────────────────────────────
+  function calculate() {
+    const routeCards = document.querySelectorAll('.route-card');
+    const railRows   = document.querySelectorAll('.rail-input-row');
+
+    let valid = true;
+    document.getElementById('err-routes').classList.remove('visible');
+    document.getElementById('err-rail').classList.remove('visible');
+
+    if (routeCards.length === 0) {
+      document.getElementById('err-routes').classList.add('visible');
+      valid = false;
+    }
+    if (!valid) return;
+
+    // ── ルート集計 ──
+    let totalRacks    = 0;
+    let totalSupports = 0;
+    let supportQR     = 0;
+    let supportSR     = 0;
+    let hasLength     = false;
+
+    routeCards.forEach(card => {
+      const idNum  = card.id.replace('route-', '');
+      const len    = parseFloat(document.getElementById('len-' + idNum).value) || 0;
+      const typeEl = card.querySelector('input[name="type-' + idNum + '"]:checked');
+      const type   = typeEl ? typeEl.value : 'QR';
+
+      if (len <= 0) return;
+      hasLength = true;
+
+      const racks    = Math.ceil(len / RACK_LENGTH);
+      const supports = Math.ceil(len / SUPPORT_INTERVAL);
+
+      totalRacks    += racks;
+      totalSupports += supports;
+
+      if (type === 'QR') supportQR += supports;
+      else               supportSR += supports;
+    });
+
+    if (!hasLength) {
+      const errEl = document.getElementById('err-routes');
+      errEl.textContent = '延長を1か所以上入力してください';
+      errEl.classList.add('visible');
+      return;
+    }
+
+    // ── ダクターレール集計（定尺2500mmから何本取れるか計算）──
+    const RAIL_TEIJAKU = 2500; // 定尺 2500mm
+    const railItems = []; // { size, count, perBar, barsNeeded }
+    let railTotalBars = 0;
+
+    railRows.forEach(row => {
+      const idNum = row.id.replace('rail-row-', '');
+      const size  = parseInt(document.getElementById('rail-size-'  + idNum).value) || 0;
+      const count = parseInt(document.getElementById('rail-count-' + idNum).value) || 0;
+      if (size <= 0 || count <= 0) return;
+      const perBar     = Math.floor(RAIL_TEIJAKU / size); // 定尺1本から取れる本数
+      const barsNeeded = perBar > 0 ? Math.ceil(count / perBar) : count; // 必要な定尺本数
+      railItems.push({ size, count, perBar, barsNeeded });
+      railTotalBars += barsNeeded;
+    });
+
+    // ── 計算結果 ──
+    const joints = Math.max(0, totalRacks - routeCards.length);
+    const bolts  = totalSupports * BOLT_PER_SUPPORT;
+    const fureQR = supportQR * FURE_PER_SUPPORT;
+    const fureSR = supportSR * FURE_PER_SUPPORT;
+
+    document.getElementById('r-rack').textContent       = totalRacks;
+    document.getElementById('r-joint').textContent      = joints;
+    document.getElementById('r-support').textContent    = totalSupports;
+    document.getElementById('r-bolt').textContent       = bolts;
+    document.getElementById('r-fure-qr').textContent    = fureQR;
+    document.getElementById('r-fure-sr').textContent    = fureSR;
+    document.getElementById('r-rail-total').textContent = railTotalBars;
+
+    document.getElementById('row-fure-qr').classList.toggle('hidden', fureQR === 0);
+    document.getElementById('row-fure-sr').classList.toggle('hidden', fureSR === 0);
+
+    // ダクターレール明細
+    const detailEl = document.getElementById('rail-detail');
+    detailEl.innerHTML = '';
+    if (railItems.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:0.82rem;color:#aaa;padding:8px 0;';
+      empty.textContent = '※ ダクターレールの入力なし';
+      detailEl.appendChild(empty);
+    } else {
+      // サイズ順にソートして表示
+      railItems
+        .sort((a, b) => a.size - b.size)
+        .forEach(({ size, count, perBar, barsNeeded }) => {
+          const item = document.createElement('div');
+          item.className = 'rail-detail-item';
+          // 端数（最後の定尺の残り）
+          const lastBarUsed = count - (barsNeeded - 1) * perBar;
+          const lastBarRem  = RAIL_TEIJAKU - size * lastBarUsed;
+          const remText = lastBarRem > 0
+            ? '<span style="font-size:0.72rem;color:#aaa;margin-left:6px;">（最後の1本：残り' + lastBarRem + 'mm）</span>'
+            : '';
+          item.innerHTML =
+            '<span class="rail-size">' + size + 'mm × ' + count + '本<br>'
+            + '<span style="font-size:0.72rem;color:#888;">定尺1本から ' + perBar + '本取り</span>'
+            + remText + '</span>'
+            + '<span style="white-space:nowrap;"><span class="rail-count">' + barsNeeded + '</span><span class="rail-unit"> 本（定尺）</span></span>';
+          detailEl.appendChild(item);
+        });
+    }
+
+    document.getElementById('result').classList.add('visible');
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ─────────────────────────────
+  //  リセット
+  // ─────────────────────────────
+  function reset() {
+    document.getElementById('route-list').innerHTML = '';
+    document.getElementById('rail-input-list').innerHTML = '';
+    routeCount = 0;
+    railCount  = 0;
+    document.getElementById('result').classList.remove('visible');
+    document.getElementById('err-routes').classList.remove('visible');
+    document.getElementById('err-rail').classList.remove('visible');
+    document.getElementById('err-routes').textContent = 'ルートを1本以上追加してください';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    addRoute();
+    addRailRow();
+  }
+
+  // 初期表示
+  addRoute();
+  addRailRow();
+</script>
+
+</body>
+</html>
