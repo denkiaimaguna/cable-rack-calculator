@@ -282,19 +282,30 @@
       <span><span class="count" id="r-rack">-</span><span class="unit">本</span></span>
     </div>
     <div class="result-item">
-      <span class="name">ジョイント</span>
+      <span class="name">ジョイント（合計）</span>
       <span><span class="count" id="r-joint">-</span><span class="unit">個</span></span>
+    </div>
+
+    <div class="result-section-label">コーナー（水平エルボ）</div>
+    <div class="result-item" id="row-corner">
+      <span class="name">水平エルボ</span>
+      <span><span class="count" id="r-corner">-</span><span class="unit">個</span></span>
+    </div>
+    <div class="result-item" id="row-corner-joint">
+      <span class="name">コーナー用ジョイント</span>
+      <span><span class="count" id="r-corner-joint">-</span><span class="unit">個</span></span>
     </div>
 
     <div class="result-section-label">支持材</div>
     <div class="result-item">
-      <span class="name">支持箇所（合計）</span>
+      <span class="name">支持箇所（ダクターレール合計）</span>
       <span><span class="count" id="r-support">-</span><span class="unit">か所</span></span>
     </div>
     <div class="result-item">
       <span class="name">全ネジボルト</span>
       <span><span class="count" id="r-bolt">-</span><span class="unit">本</span></span>
     </div>
+    <div id="support-warning" style="display:none;margin-top:8px;padding:8px 12px;background:#fef2f2;border-left:3px solid #ef4444;border-radius:4px;font-size:0.8rem;color:#991b1b;line-height:1.5;"></div>
 
     <div class="result-section-label">ふれどめ</div>
     <div class="result-item" id="row-fure-qr">
@@ -321,14 +332,17 @@
 </div>
 
 <footer>
-  ※ 支持間隔1500mm基準 / 定尺3m基準 / LRは対象外
+  ※ 支持間隔2000mm基準 / 定尺3m基準 / LRは対象外
 </footer>
 
 <script>
-  const RACK_LENGTH      = 3;    // 定尺 3m
-  const SUPPORT_INTERVAL = 1.5;  // 支持間隔 1500mm
-  const FURE_PER_SUPPORT = 2;    // ふれどめ：支持箇所×2
-  const BOLT_PER_SUPPORT = 2;    // 全ネジ：支持箇所×2
+  const RACK_LENGTH        = 3;   // 定尺 3m
+  const SUPPORT_INTERVAL   = 2.0; // 支持間隔 2000mm
+  const FURE_PER_SUPPORT   = 2;   // ふれどめ：支持箇所×2
+  const BOLT_PER_SUPPORT   = 2;   // 全ネジ：支持箇所×2
+  const JOINT_PER_CORNER   = 4;   // コーナー1か所のジョイント
+  const FURE_PER_CORNER    = 6;   // コーナー1か所のふれどめ
+  const BOLT_PER_CORNER    = 6;   // コーナー1か所の全ネジ
 
   const WIDTHS = [200, 300, 400, 500, 600, 800, 1000, 1200];
 
@@ -431,9 +445,30 @@
     lenRow.appendChild(lenInput);
     lenRow.appendChild(lenUnit);
 
+    // ── コーナー数 ──
+    const cornerRow = document.createElement('div');
+    cornerRow.className = 'input-row';
+    const cornerLbl = document.createElement('span');
+    cornerLbl.className = 'input-row-label';
+    cornerLbl.textContent = 'コーナー';
+    const cornerInput = document.createElement('input');
+    cornerInput.type = 'number';
+    cornerInput.id = 'corner-' + idx;
+    cornerInput.placeholder = '0';
+    cornerInput.min = '0';
+    cornerInput.step = '1';
+    cornerInput.value = '0';
+    const cornerUnit = document.createElement('span');
+    cornerUnit.className = 'unit';
+    cornerUnit.textContent = '箇所';
+    cornerRow.appendChild(cornerLbl);
+    cornerRow.appendChild(cornerInput);
+    cornerRow.appendChild(cornerUnit);
+
     body.appendChild(typeWrap);
     body.appendChild(widthRow);
     body.appendChild(lenRow);
+    body.appendChild(cornerRow);
     card.appendChild(header);
     card.appendChild(body);
 
@@ -530,66 +565,120 @@
     let totalSupports = 0;
     let supportQR     = 0;
     let supportSR     = 0;
+    let totalCorners  = 0;
+    let cornerQR      = 0;
+    let cornerSR      = 0;
     let hasLength     = false;
 
     routeCards.forEach(card => {
       const idNum  = card.id.replace('route-', '');
       const len    = parseFloat(document.getElementById('len-' + idNum).value) || 0;
+      const corner = parseInt(document.getElementById('corner-' + idNum).value) || 0;
       const typeEl = card.querySelector('input[name="type-' + idNum + '"]:checked');
       const type   = typeEl ? typeEl.value : 'QR';
 
-      if (len <= 0) return;
-      hasLength = true;
+      if (len <= 0 && corner <= 0) return;
+      if (len > 0) hasLength = true;
 
       const racks    = Math.ceil(len / RACK_LENGTH);
-      const supports = Math.ceil(len / SUPPORT_INTERVAL);
+      const supports = len > 0 ? Math.ceil(len / SUPPORT_INTERVAL) : 0;
 
       totalRacks    += racks;
       totalSupports += supports;
+      totalCorners  += corner;
 
-      if (type === 'QR') supportQR += supports;
-      else               supportSR += supports;
+      if (type === 'QR') { supportQR += supports; cornerQR += corner; }
+      else               { supportSR += supports; cornerSR += corner; }
     });
 
-    if (!hasLength) {
+    if (!hasLength && totalCorners === 0) {
       const errEl = document.getElementById('err-routes');
-      errEl.textContent = '延長を1か所以上入力してください';
+      errEl.textContent = '延長またはコーナー数を入力してください';
       errEl.classList.add('visible');
       return;
     }
 
     // ── ダクターレール集計（定尺2500mmから何本取れるか計算）──
     const RAIL_TEIJAKU = 2500; // 定尺 2500mm
-    const railItems = []; // { size, count, perBar, barsNeeded }
-    let railTotalBars = 0;
+    const railItems = [];
+    let railTotalBars  = 0;
+    let railTotalCount = 0; // ダクターレール合計箇所数 = 支持箇所数
 
     railRows.forEach(row => {
       const idNum = row.id.replace('rail-row-', '');
       const size  = parseInt(document.getElementById('rail-size-'  + idNum).value) || 0;
       const count = parseInt(document.getElementById('rail-count-' + idNum).value) || 0;
       if (size <= 0 || count <= 0) return;
-      const perBar     = Math.floor(RAIL_TEIJAKU / size); // 定尺1本から取れる本数
-      const barsNeeded = perBar > 0 ? Math.ceil(count / perBar) : count; // 必要な定尺本数
+      const perBar     = Math.floor(RAIL_TEIJAKU / size);
+      const barsNeeded = perBar > 0 ? Math.ceil(count / perBar) : count;
       railItems.push({ size, count, perBar, barsNeeded });
-      railTotalBars += barsNeeded;
+      railTotalBars  += barsNeeded;
+      railTotalCount += count;
     });
 
     // ── 計算結果 ──
-    const joints = Math.max(0, totalRacks - routeCards.length);
-    const bolts  = totalSupports * BOLT_PER_SUPPORT;
-    const fureQR = supportQR * FURE_PER_SUPPORT;
-    const fureSR = supportSR * FURE_PER_SUPPORT;
+    // 支持箇所数 = ダクターレール合計箇所数
+    const actualSupports = railTotalCount;
 
-    document.getElementById('r-rack').textContent       = totalRacks;
-    document.getElementById('r-joint').textContent      = joints;
-    document.getElementById('r-support').textContent    = totalSupports;
-    document.getElementById('r-bolt').textContent       = bolts;
-    document.getElementById('r-fure-qr').textContent    = fureQR;
-    document.getElementById('r-fure-sr').textContent    = fureSR;
-    document.getElementById('r-rail-total').textContent = railTotalBars;
+    // ふれどめ：QR/SR比率をルート延長から按分
+    const totalLen = (() => {
+      let l = 0;
+      routeCards.forEach(card => {
+        const idNum = card.id.replace('route-', '');
+        l += parseFloat(document.getElementById('len-' + idNum).value) || 0;
+      });
+      return l;
+    })();
+    let lenQR = 0, lenSR = 0;
+    routeCards.forEach(card => {
+      const idNum  = card.id.replace('route-', '');
+      const len    = parseFloat(document.getElementById('len-' + idNum).value) || 0;
+      const typeEl = card.querySelector('input[name="type-' + idNum + '"]:checked');
+      const type   = typeEl ? typeEl.value : 'QR';
+      if (type === 'QR') lenQR += len;
+      else               lenSR += len;
+    });
+    const ratioQR = totalLen > 0 ? lenQR / totalLen : 1;
+    const ratioSR = totalLen > 0 ? lenSR / totalLen : 0;
+
+    const straightJoints = Math.max(0, totalRacks - routeCards.length);
+    const cornerJoints   = totalCorners * JOINT_PER_CORNER;
+    const joints         = straightJoints + cornerJoints;
+
+    // 全ネジ：支持箇所数×2 + コーナー分
+    const bolts  = actualSupports * BOLT_PER_SUPPORT + totalCorners * BOLT_PER_CORNER;
+
+    // ふれどめ：支持箇所×2をQR/SR按分 + コーナー分
+    const fureQR = Math.round(actualSupports * ratioQR) * FURE_PER_SUPPORT + cornerQR * FURE_PER_CORNER;
+    const fureSR = Math.round(actualSupports * ratioSR) * FURE_PER_SUPPORT + cornerSR * FURE_PER_CORNER;
+
+    // ── 警告チェック（支持間隔が2mを超えていたら注意）──
+    const avgInterval = actualSupports > 0 && totalLen > 0 ? totalLen / actualSupports : 0;
+    const showWarning = avgInterval > 2.0;
+
+    document.getElementById('r-rack').textContent         = totalRacks;
+    document.getElementById('r-joint').textContent        = joints;
+    document.getElementById('r-corner').textContent       = totalCorners;
+    document.getElementById('r-corner-joint').textContent = cornerJoints;
+    document.getElementById('r-support').textContent      = actualSupports;
+    document.getElementById('r-bolt').textContent         = bolts;
+    document.getElementById('r-fure-qr').textContent      = fureQR;
+    document.getElementById('r-fure-sr').textContent      = fureSR;
+    document.getElementById('r-rail-total').textContent   = railTotalBars;
 
     document.getElementById('row-fure-qr').classList.toggle('hidden', fureQR === 0);
     document.getElementById('row-fure-sr').classList.toggle('hidden', fureSR === 0);
+    document.getElementById('row-corner').classList.toggle('hidden', totalCorners === 0);
+    document.getElementById('row-corner-joint').classList.toggle('hidden', totalCorners === 0);
+
+    // 警告注釈
+    const warningEl = document.getElementById('support-warning');
+    if (showWarning) {
+      warningEl.style.display = 'block';
+      warningEl.textContent = '⚠️ 支持間隔が平均 ' + avgInterval.toFixed(1) + 'm になっています。内線規定では2m以内が推奨です。支持箇所数を確認してください。';
+    } else {
+      warningEl.style.display = 'none';
+    }
 
     // ダクターレール明細
     const detailEl = document.getElementById('rail-detail');
@@ -606,11 +695,10 @@
         .forEach(({ size, count, perBar, barsNeeded }) => {
           const item = document.createElement('div');
           item.className = 'rail-detail-item';
-          // 端数（最後の定尺の残り）
-          const lastBarUsed = count - (barsNeeded - 1) * perBar;
-          const lastBarRem  = RAIL_TEIJAKU - size * lastBarUsed;
-          const remText = lastBarRem > 0
-            ? '<span style="font-size:0.72rem;color:#aaa;margin-left:6px;">（最後の1本：残り' + lastBarRem + 'mm）</span>'
+          // 1本あたりの余り（定尺から加工して出る端材）
+          const remPerBar = RAIL_TEIJAKU - size * perBar;
+          const remText = remPerBar > 0
+            ? '<span style="font-size:0.72rem;color:#aaa;margin-left:6px;">（1本あたり余り ' + remPerBar + 'mm）</span>'
             : '';
           item.innerHTML =
             '<span class="rail-size">' + size + 'mm × ' + count + '本<br>'
