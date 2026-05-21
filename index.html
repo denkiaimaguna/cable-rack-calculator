@@ -282,8 +282,8 @@
       <span><span class="count" id="r-rack">-</span><span class="unit">本</span></span>
     </div>
     <div class="result-item">
-      <span class="name">ジョイント（合計）</span>
-      <span><span class="count" id="r-joint">-</span><span class="unit">個</span></span>
+      <span class="name">ジョイント（直線用）</span>
+      <span><span class="count" id="r-joint">-</span><span class="unit">枚</span></span>
     </div>
 
     <div class="result-section-label">コーナー（水平エルボ）</div>
@@ -292,8 +292,8 @@
       <span><span class="count" id="r-corner">-</span><span class="unit">個</span></span>
     </div>
     <div class="result-item" id="row-corner-joint">
-      <span class="name">コーナー用ジョイント</span>
-      <span><span class="count" id="r-corner-joint">-</span><span class="unit">個</span></span>
+      <span class="name">ジョイント（コーナー用）</span>
+      <span><span class="count" id="r-corner-joint">-</span><span class="unit">枚</span></span>
     </div>
 
     <div class="result-section-label">支持材</div>
@@ -658,7 +658,7 @@
     const showWarning = avgInterval > 2.0;
 
     document.getElementById('r-rack').textContent         = totalRacks;
-    document.getElementById('r-joint').textContent        = joints;
+    document.getElementById('r-joint').textContent        = straightJoints;
     document.getElementById('r-corner').textContent       = totalCorners;
     document.getElementById('r-corner-joint').textContent = cornerJoints;
     document.getElementById('r-support').textContent      = actualSupports;
