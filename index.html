@@ -340,6 +340,7 @@
   const SUPPORT_INTERVAL   = 2.0; // 支持間隔 2000mm
   const FURE_PER_SUPPORT   = 2;   // ふれどめ：支持箇所×2
   const BOLT_PER_SUPPORT   = 2;   // 全ネジ：支持箇所×2
+  const JOINT_PER_STRAIGHT = 2;   // 直線ジョイント：繋ぎ目1か所に2枚（左右）
   const JOINT_PER_CORNER   = 4;   // コーナー1か所のジョイント
   const FURE_PER_CORNER    = 6;   // コーナー1か所のふれどめ
   const BOLT_PER_CORNER    = 6;   // コーナー1か所の全ネジ
@@ -641,7 +642,7 @@
     const ratioQR = totalLen > 0 ? lenQR / totalLen : 1;
     const ratioSR = totalLen > 0 ? lenSR / totalLen : 0;
 
-    const straightJoints = Math.max(0, totalRacks - routeCards.length);
+    const straightJoints = Math.max(0, totalRacks - routeCards.length) * JOINT_PER_STRAIGHT;
     const cornerJoints   = totalCorners * JOINT_PER_CORNER;
     const joints         = straightJoints + cornerJoints;
 
